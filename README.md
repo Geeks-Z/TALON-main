@@ -1,39 +1,54 @@
-# TALON-main
 
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
+![TALON](resources/TALON.png)
 
-#### 软件架构
-软件架构说明
+## 🌟 Dependencies
 
+1. torch 2.0.1
+2. torchvision 0.15.2
+3. timm 0.6.12
+4. tqdm
+5. numpy
+6. scipy
+7. easydict
 
-#### 安装教程
+### 🔑 Run experiment
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. Edit the `scripts/[MODEL NAME].json` file for global settings and hyperparameters.
 
-#### 使用说明
+2. Run:
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+   ```bash
+   cd scripts
+   python main.py --config=./scripts/talon_cifar_B60_Inc5.json
+   ```
 
-#### 参与贡献
+3. `hyper-parameters`
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+   You can edit the global parameters and algorithm-specific hyper-parameter in the corresponding json file.
 
+   These parameters include:
 
-#### 特技
+   - **init_cls**: The number of classes in the initial incremental stage.
+   - **increment**: The number of classes in each incremental stage $i$, $i$ > 1. By default, the number of classes is equal across all incremental stages.
+   - **backbone_type**: The backbone network of the incremental model. It can be selected from a variety of pre-trained models available in the Timm library, such as **ViT-B/16-IN1K** and **ViT-B/16-IN21K**. Both are pre-trained on ImageNet21K, while the former is additionally fine-tuned on ImageNet1K.
+   - **seed**: The random seed is utilized for shuffling the class order. It is set to 1993 by default, following the benchmark setting iCaRL.
+   - **t_rank**: The rank of LoRA-Teacher
+   - **t_lora_positions**: The positions of LoRA-Teacher over {'q','k','v','mlp'}
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+### 🔎 Datasets
+
+We have implemented the pre-processing datasets as follows:
+
+- **CIFAR100**: will be automatically downloaded by the code.
+- **CUB200**:
+- **miniImageNet**: 
+- **ImageNet-R**:
+
+When training **not** on `CIFAR100`, you should specify the folder of your dataset in `utils/data.py`.
+
+```python
+    def download_data(self):
+        assert 0,"You should specify the folder of your dataset"
+        train_dir = '[DATA-PATH]/train/'
+        test_dir = '[DATA-PATH]/val/'
+```
