@@ -40,9 +40,10 @@
 We have implemented the pre-processing datasets as follows:
 
 - **CIFAR100**: will be automatically downloaded by the code.
-- **CUB200**:
-- **miniImageNet**: 
-- **ImageNet-R**:
+- **CUB200**: Google Drive: [link](https://drive.google.com/file/d/1Swpje08SXizLX1QCJzNayIMgvHU1gtVe/view?usp=sharing)
+- **miniImageNet**: Google Drive: [link](https://drive.google.com/file/d/1Nq7J-y17cNRDs7bG2h_PTbX1vBYKJ16u/view?usp=sharing)
+
+These subsets are sampled from the original datasets. Please note that I do not have the right to distribute these datasets. If the distribution violates the license, I shall provide the filenames instead.
 
 When training **not** on `CIFAR100`, you should specify the folder of your dataset in `utils/data.py`.
 
