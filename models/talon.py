@@ -170,29 +170,28 @@ class Learner(BaseLearner):
     def _train(self, train_loader, test_loader):
         self._network.backbone.to(self._device)
 
-        # 初始化阶段优化器（优化 cur 和 base_fc）
+        # optimizer_init（ cur and base_fc）
         optimizer = self.get_optimizer(self._network.backbone, mode="init")
         scheduler = self.get_scheduler(optimizer)
 
         self._init_train(train_loader, optimizer, scheduler)
         self._update_prototype()
 
-        # 蒸馏阶段优化器（仅优化 stu）
+        # Distillation phase optimizer (only optimize stu)
         student_optimizer = self.get_optimizer(self._network.backbone, mode="kd")
         student_scheduler = self.get_scheduler(student_optimizer)
 
-        # self.update_cls_prototype(train_loader)
+        # Update class prototype for the student
+        self.update_cls_prototype(train_loader)
         self.kd_student_train(self.train_loader, student_optimizer, student_scheduler)
         # update student classifier weights (known_classes -> total_classes)
         self.replace_fc(self.train_loader_for_protonet)
         self._network.backbone.adapter_update()
 
     def get_optimizer(self, model, mode):
-        """根据模式返回优化器，模式支持 'init'（初始化训练）和 'kd'（蒸馏训练）"""
         param_groups = []
 
         if mode == "init":
-            # 初始化阶段：优化包含 'cur' 的参数和非 adapter 的基础参数
             cur_params = [
                 p
                 for name, p in model.named_parameters()
@@ -218,7 +217,6 @@ class Learner(BaseLearner):
                 ]
             )
         elif mode == "kd":
-            # 蒸馏阶段：仅优化包含 'stu' 的学生参数
             student_params = [
                 p
                 for name, p in model.named_parameters()
@@ -234,7 +232,6 @@ class Learner(BaseLearner):
         else:
             raise ValueError(f"Invalid optimizer mode: {mode}")
 
-        # 根据配置创建优化器
         optimizer_type = self.args["optimizer"]
         if optimizer_type == "sgd":
             optimizer = optim.SGD(param_groups, momentum=0.9)
@@ -439,12 +436,12 @@ class Learner(BaseLearner):
         softmax_result = F.softmax(scaled_input, dim=0)
         return softmax_result
 
-    # 更新cls protot
+    # update cls protot
     @torch.no_grad()
     def _update_prototype(self):
 
         cls_prototype = self.cal_cls_prototype(self.train_loader, self._cur_task)
-        # 将类别中心列表合并成张量，并更新 cls_prototype
+        # update cls_prototype
         cls_prototype_tensor = torch.cat(cls_prototype, dim=0)
         if len(self.teacher_cls_prototype) == 0:
             self.teacher_cls_prototype = cls_prototype_tensor.to(self._device)

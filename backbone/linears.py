@@ -31,16 +31,16 @@ class SimpleLinear(nn.Module):
     def forward(self, input):
         return {'logits': F.linear(input, self.weight, self.bias)}
 
-# 基于余弦相似度的分类器，其核心思想是将输入特征和权重都归一化后进行内积运算，得到余弦相似度
+# 
 class CosineLinear(nn.Module):
     def __init__(self, in_features, out_features, nb_proxy=1, to_reduce=False, sigma=True):
         super(CosineLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features * nb_proxy
-        self.nb_proxy = nb_proxy # 每个类别对应的代理（proxy）数量，默认为1。当设置大于1时，意味着每个类别用多个“代理”来表示。
-        self.to_reduce = to_reduce # 是否在前向传播中调用 `reduce_proxies` 函数对多个代理的输出进行整合。
+        self.nb_proxy = nb_proxy  
+        self.to_reduce = to_reduce  
         self.weight = nn.Parameter(torch.Tensor(self.out_features, in_features))
-        if sigma: # sigma为True，则定义一个可学习参数，用于后续对输出进行缩放；否则，不使用该参数。
+        if sigma: 
             self.sigma = nn.Parameter(torch.Tensor(1))
         else:
             self.register_parameter('sigma', None)
@@ -53,9 +53,7 @@ class CosineLinear(nn.Module):
             self.sigma.data.fill_(1)
 
     def forward(self, input):
-        # 对输入张量 input 和权重矩阵 self.weight 分别在第1维（特征维度）进行 L2 归一化。
-        # 保证了后续的点积实际上计算的是余弦相似度。
-        # F.linear 计算归一化后的输入与权重的乘积，其结果即为各类别的余弦相似度得分。
+        
         out = F.linear(F.normalize(input, p=2, dim=1), F.normalize(self.weight, p=2, dim=1))
 
         if self.to_reduce:

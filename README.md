@@ -1,5 +1,6 @@
+## Decoupled and Distilled: Task-Adaptive LoRA-Teachers with Ensemble Knowledge Transfer for Few-Shot Class-Incremental
 
-![TALON](resources/TALON.png)
+<div align=center><img src="https://markdownimg-hw.oss-cn-beijing.aliyuncs.com/20250904121521.png" style="zoom: 80%;" /></div>
 
 ## 🌟 Dependencies
 

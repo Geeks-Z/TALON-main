@@ -246,8 +246,6 @@ class VisionTransformer(nn.Module):
                 self.cur_t_mlp_lora.append(t_mlp_lora)
             self.cur_t_mlp_lora.requires_grad_(True)
 
-            # self.cur_stu_mlp_lora = nn.ModuleList()  # stu lora保持和教师模型一样的结构，教师微调哪里，学生就在哪里新建一个lora_list
-
         if 'q' in t_lora_position:
             self.cur_t_q_lora = nn.ModuleList()
             for i in range(len(self.blocks)):
@@ -302,7 +300,7 @@ class VisionTransformer(nn.Module):
             self.cur_adapter[i].requires_grad = True
 
     def adapter_update(self):
-        # 只更新教师模型
+        # only update teacher lora
         if self.cur_t_q_lora is not None:
             self.t_q_lora_list.append(copy.deepcopy(self.cur_t_q_lora))
         if self.cur_t_k_lora is not None:
@@ -615,64 +613,6 @@ def vit_base_patch16_224_sam_talon(**kwargs):
             q_bias = qkv_bias[:768]
             k_bias = qkv_bias[768:768 * 2]
             v_bias = qkv_bias[768 * 2:]
-            state_dict[key.replace('qkv.bias', 'q_proj.bias')] = q_bias
-            state_dict[key.replace('qkv.bias', 'k_proj.bias')] = k_bias
-            state_dict[key.replace('qkv.bias', 'v_proj.bias')] = v_bias
-    # second, modify the mlp.fc.weight to match fc.weight
-    for key in list(state_dict.keys()):
-        if 'mlp.fc' in key:
-            fc_weight = state_dict.pop(key)
-            state_dict[key.replace('mlp.', '')] = fc_weight
-
-    msg = model.load_state_dict(state_dict, strict=False)
-    # print(msg)
-
-    # freeze all but the adapter and head
-    for name, p in model.named_parameters():
-        if 'head' in name or 'lora' in name:
-            p.requires_grad = True
-        else:
-            p.requires_grad = False
-    return model
-
-
-# TODO timm=0.6.7不支持vit_large_patch14_dinov2.lvd142m
-# 高版本的创建vit_base_patch16_224这类模型需要通过本地加载，网络ping不同
-def vit_large_patch14_224_dinov2_talon(**kwargs):
-    model = VisionTransformer(
-        img_size=518,  # 设置成与检查点预训练时一致的输入尺寸
-        patch_size=14,
-        embed_dim=1024,
-        depth=24,
-        num_heads=16,
-        mlp_ratio=4,
-        qkv_bias=True,
-        norm_layer=partial(nn.LayerNorm, eps=1e-6),
-        **kwargs)
-    checkpoint_model = timm.create_model("vit_large_patch14_dinov2.lvd142m", pretrained=False, num_classes=0)
-    checkpoint = torch.load('/home/team/zhaohongwei/pretrained_models/dinov2_vitl14_pretrain.pth', map_location='cpu')
-    checkpoint_model.load_state_dict(checkpoint, strict=False)
-    # checkpoint_model = timm.create_model("vit_large_patch14_dinov2.lvd142m", pretrained=True, num_classes=0)
-
-    state_dict = checkpoint_model.state_dict()
-    # reg_checkpoint_model = timm.create_model("vit_large_patch14_dinov2.lvd142m", pretrained=True, checkpoint_path='/home/team/zhaohongwei/pretrained_models/dinov2_vitl14_reg4_pretrain.pth',
-    #                                      num_classes=kwargs['num_classes'])
-    # modify the checkpoint state dict to match the model
-    # first, split qkv weight into q, k, v
-    for key in list(state_dict.keys()):
-        if 'qkv.weight' in key:
-            qkv_weight = state_dict.pop(key)
-            q_weight = qkv_weight[:1024]
-            k_weight = qkv_weight[1024:1024 * 2]
-            v_weight = qkv_weight[1024 * 2:]
-            state_dict[key.replace('qkv.weight', 'q_proj.weight')] = q_weight
-            state_dict[key.replace('qkv.weight', 'k_proj.weight')] = k_weight
-            state_dict[key.replace('qkv.weight', 'v_proj.weight')] = v_weight
-        elif 'qkv.bias' in key:
-            qkv_bias = state_dict.pop(key)
-            q_bias = qkv_bias[:1024]
-            k_bias = qkv_bias[1024:1024 * 2]
-            v_bias = qkv_bias[1024 * 2:]
             state_dict[key.replace('qkv.bias', 'q_proj.bias')] = q_bias
             state_dict[key.replace('qkv.bias', 'k_proj.bias')] = k_bias
             state_dict[key.replace('qkv.bias', 'v_proj.bias')] = v_bias

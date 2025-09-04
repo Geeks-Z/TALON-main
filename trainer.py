@@ -1,7 +1,6 @@
 import sys
 import logging
 import copy
-import time
 
 import torch
 from utils import factory
@@ -9,7 +8,6 @@ from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
 import os
 import numpy as np
-import torch.distributed as dist
 
 
 def train(args):
@@ -17,14 +15,14 @@ def train(args):
     seed_list = copy.deepcopy(args["seed"])
     device = copy.deepcopy(args["device"])
     args["local_time"] = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-    # 获取 GPU 型号信息
+    # get GPU model names
     gpu_names = []
     for dev in device:
-        if dev.isdigit():  # 检查是否是 GPU 设备编号
+        if dev.isdigit():  # check if it is a GPU device number
             idx = int(dev)
             if idx < torch.cuda.device_count():
                 gpu_names.append(torch.cuda.get_device_name(idx))
-    args['gpu_models'] = gpu_names  # 将 GPU 型号列表添加到 args
+    args['gpu_models'] = gpu_names  # add GPU model list to args
 
     for seed in seed_list:
         args["seed"] = seed
@@ -98,17 +96,11 @@ def _train(args):
         #         if param.requires_grad:
         #             logging.info("{}: {}".format(name, param.numel()))
 
-        start_time = time.time()
-
         # Train model incrementally
         model.incremental_train(data_manager)
-        train_end_time = time.time()
-        total_train_time += train_end_time - start_time
 
         # Evaluate model
         cnn_accy = model._eval()
-
-        total_test_time += time.time() - train_end_time
 
         model.after_task()
 
@@ -141,8 +133,6 @@ def _train(args):
     print("PD: {:.2f}".format(cnn_curve["top1"][0] - cnn_curve["top1"][-1]))
     print("Backward Transfer (BWT):", backward_transfer(np.array(cnn_matrix)))
     print("Forward Transfer (FWT):", forward_transfer(args["dataset"], np.array(cnn_matrix)))
-    # print("Total Train Time:", round(total_train_time, 2), "s")
-    # print("Total Test Time:", round(total_test_time, 2), "s")
     if len(cnn_matrix) > 0:
         np_acctable = np.zeros([task + 1, task + 1])
         for idxx, line in enumerate(cnn_matrix):
@@ -190,25 +180,18 @@ def backward_transfer(matrix):
     """
 
     # --- Backward Transfer (BWT) ---
-    # 根据公式: BWT = (1/(T-1)) * Σ(i=1 to T-1) (R_T,i - R_i,i)
-    # R_T,i 是训练完最后一个任务 T 后，在任务 i 上的准确率 -> 对应矩阵的最后一行
-    # R_i,i 是刚训练完任务 i 后的准确率 -> 对应矩阵的对角线
+    # BWT = (1/(T-1)) * Σ(i=1 to T-1) (R_T,i - R_i,i)
+    # R_T,i: after learning the last task T, the accuracy on task i -> corresponds to the last row of the matrix
+    # R_i,i: just after learning task i, the accuracy on task i -> corresponds to the diagonal of the matrix
 
-    # 使用 0-based 索引:
     # R_T,i (i=1..T-1) -> matrix[-1, 0:T-1]
     # R_i,i (i=1..T-1) -> np.diag(matrix)[0:T-1]
 
-    last_row_accs = matrix[-1, :-1]  # 任务 1..T-1 在训练完任务 T 后的准确率
-    diagonal_accs = np.diag(matrix)[:-1]  # 任务 1..T-1 在刚训练完自己时的准确率
+    last_row_accs = matrix[-1, :-1]  # the accuracies of all tasks after learning the last task T
+    diagonal_accs = np.diag(matrix)[:-1]  # the accuracies of all tasks just after learning themselves
 
     bwt_diffs = last_row_accs - diagonal_accs
     backward_transfer = np.mean(bwt_diffs)
-
-    # print("--- Backward Transfer (BWT) ---")
-    # print(f"各任务在最终的准确率 (R_T,i): {np.round(last_row_accs, 2)}")
-    # print(f"各任务在当时的准确率 (R_i,i): {np.round(diagonal_accs, 2)}")
-    # print(f"BWT 差值 (R_T,i - R_i,i): {np.round(bwt_diffs, 2)}")
-    # print(f"Backward Transfer 平均分: {backward_transfer:.2f}")
 
     return np.round(backward_transfer, 2)
 
@@ -225,16 +208,10 @@ def forward_transfer(dataset, matrix):
     else:
         rand_init_acc = np.array([62.95, 28.08, 51.15, 38.64, 56.76, 50.93, 41.38, 61.25, 49.1, 43.37, 44.44]) # INR
 
-    fwt_accs = np.diag(matrix, k=1)  # 得到 R_0,1, R_1,2, ... (0-based)
-    rand_init_acc_for_fwt = rand_init_acc[1:]  # 需要 R_0,1, R_0,2, ... (0-based)
+    fwt_accs = np.diag(matrix, k=1)  # get R_0,1, R_1,2, ... (0-based)
+    rand_init_acc_for_fwt = rand_init_acc[1:]  # get R_0,1, R_0,2, ... (0-based)
 
     fwt_diffs = fwt_accs - rand_init_acc_for_fwt
     forward_transfer = np.mean(fwt_diffs)
-
-    # print("--- Forward Transfer (FWT) ---")
-    # print(f"新任务在前一任务训练后的准确率 (R_i-1,i): {np.round(fwt_accs, 2)}")
-    # print(f"新任务在随机初始化时的准确率 (R_0,i): {np.round(rand_init_acc_for_fwt, 2)}")
-    # print(f"FWT 差值 (R_i-1,i - R_0,i): {np.round(fwt_diffs, 2)}")
-    # print(f"Forward Transfer 平均分: {forward_transfer:.2f}")
 
     return np.round(forward_transfer, 2)

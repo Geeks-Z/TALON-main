@@ -55,7 +55,7 @@ def makedirs(path):
 def accuracy(y_pred, y_true, total_cls, nb_old, init_cls=10, increment=10):
     assert len(y_pred) == len(y_true), "Data length error."
     all_acc = {}
-    # 统计己见类别准确率
+    # Overall accuracy
     idxes = np.where(
         np.logical_and(y_true >= 0, y_true < total_cls)
     )[0]

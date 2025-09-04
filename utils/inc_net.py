@@ -66,7 +66,7 @@ class BaseNet(nn.Module):
         self.backbone = get_backbone(args, pretrained)
         print('After BaseNet initialization.')
         self.fc = None
-        self.example = None # KNN采样
+        self.example = None # KNN sample storage
         self._device = args["device"][0]
 
         if 'resnet' in args['backbone_type']:
